@@ -4,12 +4,55 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+func TestCodexProcPrependsBinArgs(t *testing.T) {
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "wrapper")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + dir + "/args.txt\nexit 0\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	proc := NewCodexProc(CodexConfig{
+		Bin: wrapper, BinArgs: []string{"codex"}, Cwd: dir, Permission: "readOnly",
+	})
+	if err := proc.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := proc.Send("hello"); err != nil {
+		t.Fatal(err)
+	}
+	// Codex turns run asynchronously, so wait for the wrapper to record its
+	// argv before Stop can kill the process.
+	argsPath := filepath.Join(dir, "args.txt")
+	var data []byte
+	var err error
+	for deadline := time.Now().Add(3 * time.Second); ; {
+		data, err = os.ReadFile(argsPath)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("wrapper did not record args: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	_ = proc.Stop()
+	got := strings.Fields(string(data))
+	if len(got) < 3 || got[0] != "codex" {
+		t.Fatalf("args=%v", got)
+	}
+	if got[1] != "-C" || got[2] != dir {
+		t.Fatalf("args=%v", got)
+	}
+}
 
 func TestCodexProcBuildsNewAndResumeCommands(t *testing.T) {
 	fresh := NewCodexProc(CodexConfig{

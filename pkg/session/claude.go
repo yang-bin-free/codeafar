@@ -12,6 +12,7 @@ import (
 // ClaudeConfig 是启动 claude 子进程所需的参数。
 type ClaudeConfig struct {
 	Bin          string   // claude 可执行文件路径（默认 "claude"）
+	BinArgs      []string // 包装命令的前置参数（如 "wrapper claude" 的 "claude"）
 	Cwd          string   // 工作目录
 	SessionID    string   // 固定 session-id，支持 --resume
 	Permission   string   // bypassPermissions | acceptEdits | default
@@ -77,7 +78,7 @@ func (p *ClaudeProc) buildArgs() []string {
 
 // Start 启动子进程并开始读取 stdout。
 func (p *ClaudeProc) Start() error {
-	cmd := exec.Command(p.cfg.Bin, p.buildArgs()...)
+	cmd := exec.Command(p.cfg.Bin, append(append([]string(nil), p.cfg.BinArgs...), p.buildArgs()...)...)
 	cmd.Dir = p.cfg.Cwd
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

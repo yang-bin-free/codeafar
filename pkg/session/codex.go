@@ -23,6 +23,7 @@ const (
 
 type CodexConfig struct {
 	Bin               string
+	BinArgs           []string // BinArgs are prepend args for wrapper commands.
 	Cwd               string
 	ProviderSessionID string
 	Permission        string
@@ -136,7 +137,7 @@ func (p *CodexProc) Send(prompt string) error {
 		p.mu.Unlock()
 		return err
 	}
-	cmd := exec.Command(p.cfg.Bin, args...)
+	cmd := exec.Command(p.cfg.Bin, append(append([]string(nil), p.cfg.BinArgs...), args...)...)
 	cmd.Dir = p.cfg.Cwd
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

@@ -8,8 +8,16 @@ func TestNormalizeIDDefaultsLegacySessionsToClaude(t *testing.T) {
 	}
 }
 
+func TestAdaptersPassBinArgsToSessionConfig(t *testing.T) {
+	adapter := NewClaudeAdapter("/bin/wrapper", []string{"claude"})
+	got := adapter.NewProcess(SessionConfig{Cwd: "/tmp", Permission: "default"})
+	if got == nil {
+		t.Fatal("nil process")
+	}
+}
+
 func TestRegistryReturnsClaudeAndRejectsUnknownProvider(t *testing.T) {
-	registry := NewRegistry(NewClaudeAdapter("claude"))
+	registry := NewRegistry(NewClaudeAdapter("claude", nil))
 	adapter, ok := registry.Get("")
 	if !ok || adapter.Descriptor().ID != ClaudeID {
 		t.Fatalf("legacy provider lookup = %+v, %v", adapter, ok)
@@ -20,7 +28,7 @@ func TestRegistryReturnsClaudeAndRejectsUnknownProvider(t *testing.T) {
 }
 
 func TestClaudeDescriptorDefinesProviderSpecificPermissions(t *testing.T) {
-	descriptor := NewClaudeAdapter("claude").Descriptor()
+	descriptor := NewClaudeAdapter("claude", nil).Descriptor()
 	if descriptor.Name != "Claude Code" || len(descriptor.Permissions) != 4 {
 		t.Fatalf("descriptor=%+v", descriptor)
 	}
@@ -37,8 +45,8 @@ func TestClaudeDescriptorDefinesProviderSpecificPermissions(t *testing.T) {
 
 func TestRegistryDescriptorsKeepRegistrationOrder(t *testing.T) {
 	registry := NewRegistry(
-		NewClaudeAdapter("claude"),
-		NewCodexAdapter("codex", true, ""),
+		NewClaudeAdapter("claude", nil),
+		NewCodexAdapter("codex", nil, true, ""),
 	)
 	for i := 0; i < 20; i++ {
 		descriptors := registry.Descriptors()

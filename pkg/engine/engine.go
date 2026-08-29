@@ -87,8 +87,8 @@ func New(cfg Config) *Engine {
 		pendingPermissions: map[string]string{},
 	}
 	e.providers = provider.NewRegistry(
-		provider.NewClaudeAdapterWithAvailability(cfg.ClaudeBin, cfg.ClaudeUnavailableReason == "", cfg.ClaudeUnavailableReason),
-		provider.NewCodexAdapter(cfg.CodexBin, cfg.CodexUnavailableReason == "", cfg.CodexUnavailableReason),
+		provider.NewClaudeAdapterWithAvailability(cfg.ClaudeBin, cfg.ClaudeBinArgs, cfg.ClaudeUnavailableReason == "", cfg.ClaudeUnavailableReason),
+		provider.NewCodexAdapter(cfg.CodexBin, cfg.CodexBinArgs, cfg.CodexUnavailableReason == "", cfg.CodexUnavailableReason),
 	)
 	e.updateSession = e.history.UpdateSession
 	if persisted, err := e.history.Restore(); err == nil {
@@ -119,13 +119,13 @@ func (e *Engine) SetProviderRegistry(registry *provider.Registry) {
 type claudeFactoryAdapter struct{ factory ClaudeFactory }
 
 func (a claudeFactoryAdapter) Descriptor() provider.Descriptor {
-	return provider.NewClaudeAdapter("claude").Descriptor()
+	return provider.NewClaudeAdapter("claude", nil).Descriptor()
 }
 
 func (a claudeFactoryAdapter) NewProcess(c provider.SessionConfig) provider.Process {
 	return a.factory(session.ClaudeConfig{
 		Cwd: c.Cwd, SessionID: c.SessionID, Permission: c.Permission, AddDirs: c.AddDirs,
-		Resume: c.Resume, AllowedTools: c.AllowedTools,
+		Resume: c.Resume, AllowedTools: c.AllowedTools, BinArgs: c.BinArgs,
 	})
 }
 

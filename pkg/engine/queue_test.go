@@ -37,7 +37,7 @@ func TestBusySessionDequeuesPromptAfterDone(t *testing.T) {
 func TestHandleProcOutputUsesSelectedProviderTranslator(t *testing.T) {
 	e := New(Config{DataDir: t.TempDir()})
 	defer e.Close()
-	e.providers = provider.NewRegistry(provider.NewCodexAdapter("codex", true, ""))
+	e.providers = provider.NewRegistry(provider.NewCodexAdapter("codex", nil, true, ""))
 	sess := session.NewSession("codex-local", "Codex", ".", "owner")
 	sess.Provider = provider.CodexID
 	e.manager.Restore(sess)

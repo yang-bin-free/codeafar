@@ -15,9 +15,11 @@ type Config struct {
 	AgentVersion            string
 	ClaudeVersion           string
 	ClaudeBin               string
+	ClaudeBinArgs           []string
 	ClaudeUnavailableReason string
 	CodexVersion            string
 	CodexBin                string
+	CodexBinArgs            []string
 	CodexUnavailableReason  string
 	DefaultWorkingDir       string
 	DefaultPermission       string

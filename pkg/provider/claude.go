@@ -4,19 +4,20 @@ import "github.com/yang-bin-free/claude-phone/pkg/session"
 
 type ClaudeAdapter struct {
 	bin               string
+	binArgs           []string
 	available         bool
 	unavailableReason string
 }
 
-func NewClaudeAdapter(bin string) *ClaudeAdapter {
+func NewClaudeAdapter(bin string, binArgs []string) *ClaudeAdapter {
 	if bin == "" {
 		bin = "claude"
 	}
-	return &ClaudeAdapter{bin: bin, available: true}
+	return &ClaudeAdapter{bin: bin, binArgs: binArgs, available: true}
 }
 
-func NewClaudeAdapterWithAvailability(bin string, available bool, unavailableReason string) *ClaudeAdapter {
-	adapter := NewClaudeAdapter(bin)
+func NewClaudeAdapterWithAvailability(bin string, binArgs []string, available bool, unavailableReason string) *ClaudeAdapter {
+	adapter := NewClaudeAdapter(bin, binArgs)
 	adapter.available = available
 	adapter.unavailableReason = unavailableReason
 	return adapter
@@ -36,7 +37,7 @@ func (a *ClaudeAdapter) Descriptor() Descriptor {
 
 func (a *ClaudeAdapter) NewProcess(config SessionConfig) Process {
 	return session.NewClaudeProc(session.ClaudeConfig{
-		Bin: a.bin, Cwd: config.Cwd, SessionID: config.SessionID,
+		Bin: a.bin, BinArgs: a.binArgs, Cwd: config.Cwd, SessionID: config.SessionID,
 		Permission: config.Permission, AddDirs: config.AddDirs, Resume: config.Resume,
 		AllowedTools: config.AllowedTools,
 	})

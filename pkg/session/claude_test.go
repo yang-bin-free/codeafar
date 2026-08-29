@@ -1,7 +1,10 @@
 package session
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +24,41 @@ func TestClaudeProcStreamJSONEnablesVerbose(t *testing.T) {
 	args := NewClaudeProc(ClaudeConfig{SessionID: "s", Permission: "default"}).buildArgs()
 	if !slices.Contains(args, "--verbose") {
 		t.Fatalf("stream-json args missing required --verbose: %v", args)
+	}
+}
+
+func TestClaudeProcPrependsBinArgs(t *testing.T) {
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "wrapper")
+	// The wrapper records the arguments it was invoked with, then exits.
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + dir + "/args.txt\nexit 0\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	proc := NewClaudeProc(ClaudeConfig{
+		Bin: wrapper, BinArgs: []string{"claude"}, Cwd: dir,
+		SessionID: "11111111-2222-3333-4444-555555555555", Permission: "default",
+	})
+	if err := proc.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := proc.Send("hello"); err != nil {
+		t.Fatal(err)
+	}
+	_ = proc.Stop()
+	data, err := os.ReadFile(filepath.Join(dir, "args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Fields(string(data))
+	wantFirst := []string{"claude", "--print", "--session-id", "11111111-2222-3333-4444-555555555555"}
+	if len(got) < len(wantFirst) {
+		t.Fatalf("args=%v", got)
+	}
+	for i, want := range wantFirst {
+		if got[i] != want {
+			t.Fatalf("args[%d]=%q want %q (full: %v)", i, got[i], want, got)
+		}
 	}
 }
 

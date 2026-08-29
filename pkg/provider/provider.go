@@ -38,6 +38,7 @@ type SessionConfig struct {
 	Resume            bool
 	AddDirs           []string
 	AllowedTools      []string
+	BinArgs           []string
 }
 
 type Process interface {

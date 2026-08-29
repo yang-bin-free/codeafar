@@ -8,7 +8,7 @@ import (
 )
 
 func TestCodexDescriptorDefinesProviderSpecificPermissions(t *testing.T) {
-	descriptor := NewCodexAdapter("codex", true, "").Descriptor()
+	descriptor := NewCodexAdapter("codex", nil, true, "").Descriptor()
 	if descriptor.ID != CodexID || descriptor.Name != "Codex" || !descriptor.Available {
 		t.Fatalf("descriptor=%+v", descriptor)
 	}
@@ -27,7 +27,7 @@ func TestCodexDescriptorDefinesProviderSpecificPermissions(t *testing.T) {
 }
 
 func TestCodexTranslatorMapsAgentCommandAndDone(t *testing.T) {
-	translator := NewCodexAdapter("codex", true, "")
+	translator := NewCodexAdapter("codex", nil, true, "")
 	assertCodexMessage(t, translator.TranslateOutput([]byte(`{"type":"item.completed","item":{"id":"a","type":"agent_message","text":"hello"}}`)), protocol.TypeToken, "hello", "", "")
 	assertCodexMessage(t, translator.TranslateOutput([]byte(`{"type":"item.started","item":{"id":"c","type":"command_execution","command":"git status"}}`)), protocol.TypeToolUse, "", "Bash", `{"command":"git status"}`)
 	assertCodexMessage(t, translator.TranslateOutput([]byte(`{"type":"turn.completed"}`)), protocol.TypeDone, "", "", "")
@@ -37,7 +37,7 @@ func TestCodexTranslatorMapsAgentCommandAndDone(t *testing.T) {
 }
 
 func TestCodexTranslatorMapsFileChangesAndToolCalls(t *testing.T) {
-	translator := NewCodexAdapter("codex", true, "")
+	translator := NewCodexAdapter("codex", nil, true, "")
 	got := translator.TranslateOutput([]byte(`{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"a.txt","kind":"add"},{"path":"b.txt","kind":"update"},{"path":"c.txt","kind":"delete"}]}}`))
 	if len(got) != 3 {
 		t.Fatalf("file changes=%q", got)
@@ -57,7 +57,7 @@ func TestCodexTranslatorMapsFileChangesAndToolCalls(t *testing.T) {
 }
 
 func TestCodexTranslatorMapsFailuresAndIgnoresInternalItems(t *testing.T) {
-	translator := NewCodexAdapter("codex", true, "")
+	translator := NewCodexAdapter("codex", nil, true, "")
 	failure := translator.TranslateOutput([]byte(`{"type":"turn.failed","error":{"message":"request failed"}}`))
 	if len(failure) != 2 {
 		t.Fatalf("turn failure messages=%q", failure)

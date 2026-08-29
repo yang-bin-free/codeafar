@@ -4,15 +4,16 @@ import "github.com/yang-bin-free/claude-phone/pkg/session"
 
 type CodexAdapter struct {
 	bin               string
+	binArgs           []string
 	available         bool
 	unavailableReason string
 }
 
-func NewCodexAdapter(bin string, available bool, unavailableReason string) *CodexAdapter {
+func NewCodexAdapter(bin string, binArgs []string, available bool, unavailableReason string) *CodexAdapter {
 	if bin == "" {
 		bin = "codex"
 	}
-	return &CodexAdapter{bin: bin, available: available, unavailableReason: unavailableReason}
+	return &CodexAdapter{bin: bin, binArgs: binArgs, available: available, unavailableReason: unavailableReason}
 }
 
 func (a *CodexAdapter) Descriptor() Descriptor {
@@ -28,7 +29,7 @@ func (a *CodexAdapter) Descriptor() Descriptor {
 
 func (a *CodexAdapter) NewProcess(config SessionConfig) Process {
 	return session.NewCodexProc(session.CodexConfig{
-		Bin: a.bin, Cwd: config.Cwd, ProviderSessionID: config.ProviderSessionID,
+		Bin: a.bin, BinArgs: a.binArgs, Cwd: config.Cwd, ProviderSessionID: config.ProviderSessionID,
 		Permission: config.Permission, Model: config.Model, AddDirs: config.AddDirs,
 	})
 }
