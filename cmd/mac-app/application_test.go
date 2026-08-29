@@ -100,7 +100,7 @@ func TestApplicationStartsWhenOnlyCodexIsAvailable(t *testing.T) {
 	}
 }
 
-func TestStartUsesConfigFileCommandWhenFlagUnset(t *testing.T) {
+func TestStartThreadsResolvedWrapperCommandIntoEngineConfig(t *testing.T) {
 	var captured engine.Config
 	app := newApplication(context.Background(), appConfig{
 		DesktopAddr: "127.0.0.1:0", ClaudeBin: "wrapper claude", CodexBin: "codex", AdminToken: "token",

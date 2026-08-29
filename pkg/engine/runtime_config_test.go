@@ -82,6 +82,27 @@ func TestReadPersistedCommandsReturnsEmptyWithoutFile(t *testing.T) {
 	}
 }
 
+func TestReadPersistedCommandsIgnoresCorruptYAML(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("::: not yaml [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if claude, codex := ReadPersistedCommands(dir); claude != "" || codex != "" {
+		t.Fatalf("claude=%q codex=%q", claude, codex)
+	}
+}
+
+func TestReadPersistedCommandsReturnsBothCommands(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("claudeCommand: wrapper claude\ncodexCommand:  wrapper codex \n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	claude, codex := ReadPersistedCommands(dir)
+	if claude != "wrapper claude" || codex != "wrapper codex" {
+		t.Fatalf("claude=%q codex=%q", claude, codex)
+	}
+}
+
 func TestInvalidRuntimeConfigKeepsLastValidValues(t *testing.T) {
 	dir := t.TempDir()
 	e := New(Config{DataDir: dir, DefaultWorkingDir: "/old", DefaultPermission: "default", MaxConcurrentSession: 3})
