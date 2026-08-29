@@ -59,7 +59,7 @@
 - Produces: `ResolvedCommand struct { Path string; PrependArgs []string }`, `func (c ResolvedCommand) String() string`, `func ResolveCommand(requested, defaultName, displayName string, includeClaudeLocal bool) (ResolvedCommand, error)`.
 - `ResolveClaudeBinary`/`ResolveCodexBinary` change signature to `(ResolvedCommand, error)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `pkg/desktop/command_test.go`:
 
@@ -164,12 +164,12 @@ func TestResolveClaudeBinaryMultiWordViaClaudeResolver(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `go test ./pkg/desktop -run 'TestResolveCommand|TestResolveClaudeBinary' -count=1`
 Expected: FAIL — `ResolveCommand` and `ResolvedCommand` undefined; existing tests fail to compile against the old signature.
 
-- [ ] **Step 3: Implement ResolveCommand**
+- [x] **Step 3: Implement ResolveCommand**
 
 Create `pkg/desktop/command.go`:
 
@@ -233,12 +233,12 @@ func ResolveCodexBinary(requested string) (ResolvedCommand, error) {
 
 The moved body keeps `os/exec`, `filepath`, `sort`, `strings` imports as needed; `claude.go` keeps only the two wrappers if the body now lives in `command.go` — put the moved search body in `command.go` and leave `claude.go` with just the wrappers and their doc comments.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `go test ./pkg/desktop -count=1`
 Expected: PASS (whole package — other tests in `pkg/desktop` must still compile).
 
-- [ ] **Step 5: Fix downstream compile errors, run full build**
+- [x] **Step 5: Fix downstream compile errors, run full build**
 
 Run: `go build ./...`
 Expected: callers of the old signature fail to compile (`cmd/mac-app`, `cmd/mac-agent`, `pkg/engine` tests). Do NOT fix them here beyond what `go build ./pkg/...` needs — `cmd/` fixes are Task 6. `go build ./pkg/...` must pass.
@@ -246,7 +246,7 @@ Expected: callers of the old signature fail to compile (`cmd/mac-app`, `cmd/mac-
 Run: `go test ./pkg/desktop ./pkg/engine -count=1`
 Expected: `pkg/desktop` PASS; `pkg/engine` compile errors are expected only if it references the resolvers — check `grep -rn "ResolveClaudeBinary" pkg/engine/` first; today only `cmd/` references them, so `pkg/engine` must PASS unchanged.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pkg/desktop/command.go pkg/desktop/command_test.go pkg/desktop/claude.go pkg/desktop/claude_test.go
@@ -264,7 +264,7 @@ git commit -m "feat: resolve multi-word CLI commands"
 **Interfaces:**
 - `DetectCLIVersion(bin, productName string)` becomes `DetectCLIVersion(command []string, productName string) (string, error)` where `command[0]` is the executable and the rest are prepend args.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create/extend `pkg/engine/claude_version_test.go`:
 
@@ -331,12 +331,12 @@ func TestDetectCLIVersionWithPrependArgs(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `go test ./pkg/engine -run TestDetectCLIVersion -count=1`
 Expected: FAIL — signature mismatch (compile error).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `pkg/engine/claude_version.go` replace the function body:
 
@@ -361,12 +361,12 @@ func DetectCLIVersion(command []string, productName string) (string, error) {
 }
 ```
 
-- [ ] **Step 4: Fix callers of the old signature inside pkg/engine only**
+- [x] **Step 4: Fix callers of the old signature inside pkg/engine only**
 
 Run: `grep -rn "DetectCLIVersion(" pkg/ --include="*.go" | grep -v claude_version`
 Expected hits: `cmd/mac-agent/main.go`, `cmd/mac-app/application.go` (both fixed in Task 6) and any engine test helpers. Fix engine-internal callers by passing `[]string{bin}`. `go build ./pkg/...` and `go test ./pkg/engine -count=1` must pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/engine/claude_version.go pkg/engine/claude_version_test.go
@@ -392,7 +392,7 @@ git commit -m "feat: detect CLI version for wrapper commands"
 - `provider.SessionConfig` gains `BinArgs []string`.
 - `NewClaudeAdapter(bin string, args []string)` / `NewClaudeAdapterWithAvailability(bin string, args []string, available bool, reason string)` / `NewCodexAdapter(bin string, args []string, available bool, reason string)`.
 
-- [ ] **Step 1: Write the failing session tests**
+- [x] **Step 1: Write the failing session tests**
 
 In `pkg/session/claude_test.go` add:
 
@@ -478,12 +478,12 @@ func TestAdaptersPassBinArgsToSessionConfig(t *testing.T) {
 
 (This compiles only after the signature change; it guards the constructor wiring.)
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `go test ./pkg/session ./pkg/provider -count=1`
 Expected: FAIL — `BinArgs` undefined (compile error).
 
-- [ ] **Step 3: Implement session layer**
+- [x] **Step 3: Implement session layer**
 
 `pkg/session/claude.go`:
 
@@ -516,7 +516,7 @@ func (p *ClaudeProc) Start() error {
 cmd := exec.Command(p.cfg.Bin, append(append([]string(nil), p.cfg.BinArgs...), args...)...)
 ```
 
-- [ ] **Step 4: Implement provider layer**
+- [x] **Step 4: Implement provider layer**
 
 `pkg/provider/provider.go` — extend `SessionConfig`:
 
@@ -573,7 +573,7 @@ func (a *ClaudeAdapter) NewProcess(config SessionConfig) Process {
 
 `pkg/provider/codex.go`: same pattern — `CodexAdapter{bin, binArgs, available, unavailableReason}`, `NewCodexAdapter(bin string, binArgs []string, available bool, unavailableReason string)`, and `NewProcess` passes `BinArgs: a.binArgs`.
 
-- [ ] **Step 5: Run tests, fix engine callers**
+- [x] **Step 5: Run tests, fix engine callers**
 
 Run: `go test ./pkg/session ./pkg/provider -count=1`
 Expected: PASS.
@@ -599,7 +599,7 @@ Also update `claudeFactoryAdapter` in `engine.go` — its `NewProcess` must pass
 
 Run: `go test ./pkg/engine -count=1` — Expected: PASS (fix any remaining engine test callers the same way: `NewClaudeAdapter("claude", nil)`).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pkg/session pkg/provider pkg/engine
@@ -623,7 +623,7 @@ git commit -m "feat: pass wrapper args through session and provider layers"
 - `func ValidateCommandSetting(command, displayName string, resolve func(string) (string, error)) (string, error)` — returns the normalized command (empty stays empty); rejects >8 words, >200 chars, quotes, unresolvable executables.
 - `runtimeConfig` gains `ClaudeCommand string` / `CodexCommand string`.
 
-- [ ] **Step 1: Write the failing validation tests**
+- [x] **Step 1: Write the failing validation tests**
 
 Create `pkg/engine/settings_command_test.go`:
 
@@ -691,12 +691,12 @@ func TestValidateCommandSettingRejectsUnresolvable(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `go test ./pkg/engine -run TestValidateCommandSetting -count=1`
 Expected: FAIL — function undefined.
 
-- [ ] **Step 3: Implement validation**
+- [x] **Step 3: Implement validation**
 
 Create `pkg/engine/settings_command.go`:
 
@@ -744,12 +744,12 @@ func ValidateCommandSetting(command, displayName string, resolve func(string) (s
 
 Note: `strings.Fields` already splits on tabs/newlines, so the explicit tab/newline check above makes the rejection message explicit — keep both.
 
-- [ ] **Step 4: Run validation tests**
+- [x] **Step 4: Run validation tests**
 
 Run: `go test ./pkg/engine -run TestValidateCommandSetting -count=1`
 Expected: PASS.
 
-- [ ] **Step 5: Wire into runtime config + admin API (failing test first)**
+- [x] **Step 5: Wire into runtime config + admin API (failing test first)**
 
 In `pkg/engine/runtime_config_test.go` (create if absent) add:
 
@@ -793,7 +793,7 @@ func TestAdminSettingsRejectsUnresolvableCommand(t *testing.T) {
 
 Implement the assertion concretely once you see the existing handler test scaffolding (there are existing `TestAdmin...` tests using the engine's admin mux) — reuse their `httptest` pattern verbatim.
 
-- [ ] **Step 6: Implement persistence + handler**
+- [x] **Step 6: Implement persistence + handler**
 
 `runtimeConfig`:
 
@@ -895,12 +895,12 @@ func (e *Engine) commands() (claude, codex string) {
 
 and `adminStatus` gains parameters or the snapshot handler reads `e.commands()` — implement by extending the existing snapshot handler where `adminStatus(e.Status())` is called, passing the two strings through.
 
-- [ ] **Step 7: Run engine tests**
+- [x] **Step 7: Run engine tests**
 
 Run: `go test ./pkg/engine ./pkg/adminproto -count=1`
 Expected: PASS, including the new persistence and 400 tests.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add pkg/engine pkg/adminproto
@@ -918,7 +918,7 @@ git commit -m "feat: persist and validate CLI command settings"
 
 **Interfaces:** Two new inputs `#settings-claude-command` / `#settings-codex-command`, loaded from `agent.claudeCommand`/`agent.codexCommand`, submitted in the PATCH body.
 
-- [ ] **Step 1: Write the failing regression test**
+- [x] **Step 1: Write the failing regression test**
 
 In `web/design_regression_test.go` extend the id list check:
 
@@ -940,12 +940,12 @@ And add a JS-content check after the existing ones:
 
 (Read `admin/admin.js` via `fs.ReadFile(Assets, "admin/admin.js")` alongside the existing chat.js read.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./web -run TestDesktopAdminForms -count=1`
 Expected: FAIL — ids missing.
 
-- [ ] **Step 3: Implement HTML**
+- [x] **Step 3: Implement HTML**
 
 In `web/chat/index.html` settings form (after the concurrency input):
 
@@ -956,7 +956,7 @@ In `web/chat/index.html` settings form (after the concurrency input):
 
 The existing form labels have no `for` attribute but pass the persistent-label check because the label wraps the input — match that pattern exactly.
 
-- [ ] **Step 4: Implement JS**
+- [x] **Step 4: Implement JS**
 
 In `web/admin/admin.js` load section (next to the other three):
 
@@ -972,12 +972,12 @@ claudeCommand: document.querySelector("#settings-claude-command").value.trim(),
 codexCommand: document.querySelector("#settings-codex-command").value.trim(),
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `go test ./web -count=1`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/chat/index.html web/admin/admin.js web/design_regression_test.go
@@ -998,7 +998,7 @@ git commit -m "feat: add CLI command fields to admin settings"
 - `main.go`: when `--claude-bin`/`--codex-bin` are not explicitly set, read the commands from `~/.codeafar/config.yaml` (via a new exported engine helper `engine.ReadPersistedCommands(dataDir string) (claude, codex string)`).
 - `application.go`: `resolveProvider` works with `desktop.ResolvedCommand`; `detectVersion` takes `[]string`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add `ReadPersistedCommands` test in `pkg/engine/runtime_config_test.go`:
 
@@ -1031,12 +1031,12 @@ func TestStartUsesConfigFileCommandWhenFlagUnset(t *testing.T) {
 
 Implement following the existing `TestStart*` tests' scaffolding in that file (they already build the application with stub deps and inspect `engine.Config` via a fake `newEngine`).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `go test ./pkg/engine -run TestReadPersistedCommands -count=1 && go test ./cmd/mac-app -count=1`
 Expected: FAIL — helper undefined / signature compile errors.
 
-- [ ] **Step 3: Implement ReadPersistedCommands**
+- [x] **Step 3: Implement ReadPersistedCommands**
 
 In `pkg/engine/runtime_config.go`:
 
@@ -1061,7 +1061,7 @@ func ReadPersistedCommands(dataDir string) (claude, codex string) {
 
 (Add the `strings` import.)
 
-- [ ] **Step 4: Implement main.go flag-vs-file precedence**
+- [x] **Step 4: Implement main.go flag-vs-file precedence**
 
 In `cmd/mac-app/main.go` after `fs.Parse`:
 
@@ -1091,7 +1091,7 @@ if !claudeFlagSet || !codexFlagSet {
 
 then pass `ClaudeBin: claudeCommand, CodexBin: codexCommand` into `appConfig`.
 
-- [ ] **Step 5: Implement application.go command flow**
+- [x] **Step 5: Implement application.go command flow**
 
 `resolveProvider` becomes:
 
@@ -1130,12 +1130,12 @@ CodexBinArgs:            codexCommand.PrependArgs,
 
 and `AppStatus`/menu-state fields keep using `command.String()` for display. Update `cmd/mac-agent/main.go` `resolveServeProviders` the same way (it already receives the resolvers as parameters; change the param types and thread `ResolvedCommand` into `cfg.ClaudeBin`/`ClaudeBinArgs`).
 
-- [ ] **Step 6: Run all Go tests**
+- [x] **Step 6: Run all Go tests**
 
 Run: `go build ./... && go test ./... -count=1`
 Expected: PASS across all packages (this is the first task where `cmd/` compiles again).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add cmd pkg/engine
@@ -1151,7 +1151,7 @@ git commit -m "feat: load persisted CLI commands at startup"
 
 **Interfaces:** A black-box test that boots the mac-app application with a fake wrapper CLI (shell script emitting valid stream-json) configured via config.yaml, and drives one full chat turn.
 
-- [ ] **Step 1: Write the failing e2e test**
+- [x] **Step 1: Write the failing e2e test**
 
 ```go
 func TestApplicationEndToEndWithWrapperCommand(t *testing.T) {
@@ -1175,17 +1175,17 @@ func TestApplicationEndToEndWithWrapperCommand(t *testing.T) {
 
 Model the WebSocket driving on `pkg/engine/real_claude_e2e_test.go` (which already builds a session and asserts token output); the difference is the Claude process comes from a wrapper script.
 
-- [ ] **Step 2: Run to verify it fails, then implement the test fully**
+- [x] **Step 2: Run to verify it fails, then implement the test fully**
 
 Run: `go test ./cmd/mac-app -run TestApplicationEndToEndWithWrapperCommand -count=1`
 Expected: initially FAIL (test not yet implemented beyond scaffold); implement it fully and reach PASS.
 
-- [ ] **Step 3: Run the full suite**
+- [x] **Step 3: Run the full suite**
 
 Run: `go test ./... -count=1 && go test -race ./pkg/engine ./pkg/session ./pkg/provider ./pkg/desktop -count=1`
 Expected: PASS everywhere, no race.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/mac-app/fake_cli_e2e_test.go
@@ -1203,12 +1203,12 @@ git commit -m "test: cover wrapper CLI end to end"
 
 **Interfaces:** Real-browser proof per the project's UI-testing rule: open the running Mac app's admin page, set the Claude command to a local fake wrapper, save, restart the app process, verify the chat uses the wrapper.
 
-- [ ] **Step 1: Check existing Playwright conventions**
+- [x] **Step 1: Check existing Playwright conventions**
 
 Run: `ls docs/testing/ && grep -rn "playwright" docs/ scripts/ --include="*.md" -l | head -5`
 Read the existing acceptance plan to copy its launch/login/screenshot pattern.
 
-- [ ] **Step 2: Write the Playwright script**
+- [x] **Step 2: Write the Playwright script**
 
 Script outline (adapt to repo conventions):
 
@@ -1228,12 +1228,12 @@ Script outline (adapt to repo conventions):
 # config.yaml unchanged.
 ```
 
-- [ ] **Step 3: Run it against the real app and iterate until green**
+- [x] **Step 3: Run it against the real app and iterate until green**
 
 Run: `python3 scripts/ui-test-cli-settings.py` (or the repo's runner)
 Expected: all assertions pass, screenshots saved.
 
-- [ ] **Step 4: README paragraph (wrapper-neutral)**
+- [x] **Step 4: README paragraph (wrapper-neutral)**
 
 In `README.md` Mac V1 section, after the permission-modes part, add:
 
@@ -1243,7 +1243,7 @@ In `README.md` Mac V1 section, after the permission-modes part, add:
 设置页可以把 Claude/Codex 的启动命令改成任意「可执行文件 + 参数」的形式（例如本地的包装脚本）。命令在保存时校验：第一个词必须是可执行文件，最多 8 个参数、200 个字符，不支持引号参数。修改在重启应用后生效；会话历史与恢复不受影响。
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/ README.md docs/testing/
@@ -1254,16 +1254,16 @@ git commit -m "test: verify CLI settings through the browser"
 
 ### Task 9: Final verification and merge prep
 
-- [ ] **Step 1: Full suite**
+- [x] **Step 1: Full suite**
 
 Run: `go build ./... && go test ./... -count=1 && go test -race ./... -count=1`
 Expected: PASS.
 
-- [ ] **Step 2: Manual smoke with a real wrapper (optional, local only)**
+- [x] **Step 2: Manual smoke with a real wrapper (optional, local only)**
 
 If a wrapper CLI is installed locally, run the Mac app with `--claude-bin "<wrapper> claude"`, send one message in the chat UI, confirm streaming works. Record the result in the worktree notes; do not commit wrapper-specific anything.
 
-- [ ] **Step 3: Update plan checkboxes and merge**
+- [x] **Step 3: Update plan checkboxes and merge**
 
 Mark all boxes, squash-merge or merge `feat/cli-commands` into `master` per repo convention (check `git log --merges --oneline | head -3` for the usual style), push.
 
