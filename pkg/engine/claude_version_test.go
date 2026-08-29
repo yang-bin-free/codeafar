@@ -1,6 +1,50 @@
 package engine
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func writeVersionScript(t *testing.T, dir, name, version string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	script := "#!/bin/sh\necho '" + version + "'\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestDetectCLIVersionSingleCommand(t *testing.T) {
+	dir := t.TempDir()
+	bin := writeVersionScript(t, dir, "agent", "1.2.3 (Agent)")
+	got, err := DetectCLIVersion([]string{bin}, "coding agent")
+	if err != nil || got != "1.2.3" {
+		t.Fatalf("got=%q err=%v", got, err)
+	}
+}
+
+func TestDetectCLIVersionWithPrependArgs(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "wrapper")
+	script := "#!/bin/sh\necho \"$1 -> 2.1.245\"\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := DetectCLIVersion([]string{path, "claude"}, "coding agent")
+	if err != nil || got != "2.1.245" {
+		t.Fatalf("got=%q err=%v", got, err)
+	}
+}
+
+func TestDetectCLIVersionUnparsableOutputFails(t *testing.T) {
+	dir := t.TempDir()
+	bin := writeVersionScript(t, dir, "agent", "no version here")
+	if _, err := DetectCLIVersion([]string{bin}, "coding agent"); err == nil {
+		t.Fatal("expected parse error")
+	}
+}
 
 func TestClaudeVersionPattern(t *testing.T) {
 	for input, want := range map[string]string{"2.1.204 (Claude Code)": "2.1.204", "claude version 3.0.0-beta.1": "3.0.0-beta.1"} {

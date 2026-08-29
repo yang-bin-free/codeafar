@@ -13,11 +13,18 @@ func DetectClaudeVersion(bin string) (string, error) {
 	if bin == "" {
 		bin = "claude"
 	}
-	return DetectCLIVersion(bin, "Claude")
+	return DetectCLIVersion([]string{bin}, "Claude")
 }
 
-func DetectCLIVersion(bin, productName string) (string, error) {
-	output, err := exec.Command(bin, "--version").CombinedOutput()
+// DetectCLIVersion runs `<command> --version` and extracts the semantic
+// version. command[0] is the executable; remaining words are prepend args for
+// wrapper CLIs.
+func DetectCLIVersion(command []string, productName string) (string, error) {
+	if len(command) == 0 {
+		return "", errors.New("empty " + productName + " command")
+	}
+	args := append(append([]string(nil), command[1:]...), "--version")
+	output, err := exec.Command(command[0], args...).CombinedOutput()
 	if err != nil {
 		return "", err
 	}
