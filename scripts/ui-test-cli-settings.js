@@ -293,5 +293,12 @@ main()
   .finally(async () => {
     await stopServer();
     if (browser) await browser.close().catch(() => {});
+    // Screenshots live under docs/testing/artifacts/, not workRoot, and all
+    // assertions have run by now, so the temp work dir (data/, project/ and
+    // the fake wrapper) can be removed. Keep it on failure only, for
+    // debugging: an exitCode of 0 means nobody needs it anymore.
+    if (exitCode === 0) {
+      fs.rmSync(workRoot, { recursive: true, force: true });
+    }
     process.exit(exitCode);
   });
