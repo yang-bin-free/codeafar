@@ -19,8 +19,8 @@ func writeExecutable(t *testing.T, dir, name string) string {
 func TestResolveClaudeBinaryUsesExplicitPath(t *testing.T) {
 	bin := writeExecutable(t, t.TempDir(), "claude")
 	got, err := ResolveClaudeBinary(bin)
-	if err != nil || got != bin {
-		t.Fatalf("got=%q err=%v", got, err)
+	if err != nil || got.Path != bin || len(got.PrependArgs) != 0 {
+		t.Fatalf("got=%+v err=%v", got, err)
 	}
 }
 
@@ -29,8 +29,18 @@ func TestResolveClaudeBinaryUsesPATH(t *testing.T) {
 	bin := writeExecutable(t, dir, "claude")
 	t.Setenv("PATH", dir)
 	got, err := ResolveClaudeBinary("claude")
-	if err != nil || got != bin {
-		t.Fatalf("got=%q err=%v", got, err)
+	if err != nil || got.Path != bin {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+}
+
+func TestResolveClaudeBinaryMultiWordViaClaudeResolver(t *testing.T) {
+	dir := t.TempDir()
+	writeExecutable(t, dir, "wrapper")
+	t.Setenv("PATH", dir)
+	got, err := ResolveClaudeBinary("wrapper claude")
+	if err != nil || got.Path != filepath.Join(dir, "wrapper") || len(got.PrependArgs) != 1 {
+		t.Fatalf("got=%+v err=%v", got, err)
 	}
 }
 
@@ -44,8 +54,8 @@ func TestResolveClaudeBinaryUsesFinderFallback(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", t.TempDir())
 	got, err := ResolveClaudeBinary("claude")
-	if err != nil || got != bin {
-		t.Fatalf("got=%q err=%v", got, err)
+	if err != nil || got.Path != bin {
+		t.Fatalf("got=%+v err=%v", got, err)
 	}
 }
 
@@ -59,8 +69,8 @@ func TestResolveClaudeBinaryUsesNVMFallbackWithoutShellPATH(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "/usr/bin:/bin")
 	got, err := ResolveClaudeBinary("claude")
-	if err != nil || got != bin {
-		t.Fatalf("got=%q want=%q err=%v", got, bin, err)
+	if err != nil || got.Path != bin {
+		t.Fatalf("got=%+v want=%q err=%v", got, bin, err)
 	}
 }
 
@@ -91,7 +101,7 @@ func TestResolveCodexBinaryUsesNVMFallbackWithoutShellPATH(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "/usr/bin:/bin")
 	got, err := ResolveCodexBinary("codex")
-	if err != nil || got != bin {
-		t.Fatalf("got=%q want=%q err=%v", got, bin, err)
+	if err != nil || got.Path != bin {
+		t.Fatalf("got=%+v want=%q err=%v", got, bin, err)
 	}
 }
