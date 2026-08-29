@@ -45,6 +45,7 @@ add a regression test, rebuild, and rerun the entire plan from a clean install.
 | ADMIN-02 | P1 | Template CRUD | Add/update/remove template persists and inserts the correct prompt | admin UI and YAML |
 | ADMIN-03 | P1 | Permission rules | Rule changes persist and are passed to newly created sessions | admin UI and process args/test |
 | ADMIN-04 | P1 | Runtime settings | Valid settings apply; invalid directory, permission and limits are rejected | HTTP/UI response and YAML |
+| ADMIN-06 | P1 | Custom launch commands | A multi-word command persists, is rejected when its first word is not an executable, and drives real turns after restart | `scripts/ui-test-cli-settings.js` browser run, screenshots and YAML |
 | ADMIN-05 | P1 | Diagnostics content | Claude/Codex versions and paths, devices, sessions and health counts match runtime | UI vs process/status audit |
 | ERR-01 | P0 | Claude CLI missing | App stays open and shows an actionable unavailable message; Resume can recover | screenshot and status |
 | ERR-02 | P1 | Claude CLI exits early | User sees an error instead of a permanently busy session | UI and injected stderr |
