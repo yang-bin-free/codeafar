@@ -30,17 +30,19 @@ func TestCodexProcPrependsBinArgs(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Codex turns run asynchronously, so wait for the wrapper to record its
-	// argv before Stop can kill the process.
+	// argv before Stop can kill the process. Poll until the content is
+	// complete — the shell creates/truncates args.txt before printf finishes,
+	// so a successful read alone can still observe a partial file.
 	argsPath := filepath.Join(dir, "args.txt")
 	var data []byte
 	var err error
 	for deadline := time.Now().Add(3 * time.Second); ; {
 		data, err = os.ReadFile(argsPath)
-		if err == nil {
+		if err == nil && strings.HasSuffix(string(data), "hello\n") {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("wrapper did not record args: %v", err)
+			t.Fatalf("wrapper did not record complete args: read err=%v data=%q", err, data)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
