@@ -53,6 +53,8 @@ type runtimeConfig struct {
 	DefaultWorkingDir     string `yaml:"defaultWorkingDir"`
 	DefaultPermission     string `yaml:"defaultPermission"`
 	MaxConcurrentSessions int    `yaml:"maxConcurrentSessions"`
+	ClaudeCommand         string `yaml:"claudeCommand,omitempty"`
+	CodexCommand          string `yaml:"codexCommand,omitempty"`
 }
 
 func (e *Engine) runtimeConfig() runtimeConfig {

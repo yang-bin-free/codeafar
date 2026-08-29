@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,6 +26,40 @@ func TestRuntimeConfigReloadsSafeFields(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("config did not reload: %+v", e.Status())
+}
+
+func TestUpdateRuntimeConfigPersistsCommands(t *testing.T) {
+	dataDir := t.TempDir()
+	workDir := t.TempDir()
+	e := New(Config{DataDir: dataDir, DefaultWorkingDir: workDir, DefaultPermission: "default", MaxConcurrentSession: 2})
+	defer e.Close()
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "wrapper")
+	script := "#!/bin/sh\nexit 0\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	command := wrapper + " claude"
+	if _, err := ValidateCommandSetting(command, "Claude", func(s string) (string, error) { return s, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.updateRuntimeConfig(runtimeConfig{
+		DefaultWorkingDir: workDir, DefaultPermission: "default",
+		MaxConcurrentSessions: 2, ClaudeCommand: command, CodexCommand: "",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := e.runtimeConfig()
+	if got.ClaudeCommand != command {
+		t.Fatalf("claudeCommand=%q", got.ClaudeCommand)
+	}
+	if got.CodexCommand != "" {
+		t.Fatalf("codexCommand=%q", got.CodexCommand)
+	}
+	content, err := os.ReadFile(filepath.Join(dataDir, "config.yaml"))
+	if err != nil || !strings.Contains(string(content), "claudeCommand: "+command) {
+		t.Fatalf("config=%q err=%v", content, err)
+	}
 }
 
 func TestInvalidRuntimeConfigKeepsLastValidValues(t *testing.T) {

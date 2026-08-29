@@ -37,6 +37,12 @@ func ResolveCommand(requested, defaultName, displayName string, includeClaudeLoc
 	return ResolvedCommand{Path: path, PrependArgs: append([]string(nil), words[1:]...)}, nil
 }
 
+// ResolveCommandWord resolves a single executable word through the standard
+// CLI search paths.
+func ResolveCommandWord(requested string) (string, error) {
+	return resolveCodingAgentBinary(requested, requested, requested, false)
+}
+
 // resolveCodingAgentBinary finds a runnable executable for a single-word
 // command name even when the app was launched from Finder with macOS's
 // minimal PATH.

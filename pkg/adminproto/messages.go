@@ -20,6 +20,8 @@ type UpdateSettingsRequest struct {
 	DefaultWorkingDir     string `json:"defaultWorkingDir"`
 	DefaultPermission     string `json:"defaultPermission"`
 	MaxConcurrentSessions int    `json:"maxConcurrentSessions"`
+	ClaudeCommand         string `json:"claudeCommand,omitempty"`
+	CodexCommand          string `json:"codexCommand,omitempty"`
 }
 
 type PermissionRule struct {
@@ -70,6 +72,8 @@ type AgentStatus struct {
 	ClaudeBin            string            `json:"claudeBin"`
 	CodexVersion         string            `json:"codexVersion"`
 	CodexBin             string            `json:"codexBin"`
+	ClaudeCommand        string            `json:"claudeCommand"`
+	CodexCommand         string            `json:"codexCommand"`
 	DefaultWorkingDir    string            `json:"defaultWorkingDir"`
 	DefaultPermission    string            `json:"defaultPermission"`
 	MaxConcurrentSession int               `json:"maxConcurrentSession"`

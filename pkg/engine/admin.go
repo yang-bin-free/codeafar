@@ -31,8 +31,9 @@ func (e *Engine) AdminHandler(token string) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		rc := e.runtimeConfig()
 		writeAdminJSON(w, http.StatusOK, adminproto.Snapshot{
-			Agent: adminStatus(e.Status()), Devices: e.adminDevices(), Projects: projects, Diagnostics: e.diagnostics(),
+			Agent: adminStatus(e.Status(), rc.ClaudeCommand, rc.CodexCommand), Devices: e.adminDevices(), Projects: projects, Diagnostics: e.diagnostics(),
 			PermissionRules: e.permissions.List(), Templates: adminTemplates(templates),
 		})
 	})
@@ -42,9 +43,20 @@ func (e *Engine) AdminHandler(token string) http.Handler {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
+		claudeCommand, err := e.validateCommand(request.ClaudeCommand, "Claude")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		codexCommand, err := e.validateCommand(request.CodexCommand, "Codex")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := e.updateRuntimeConfig(runtimeConfig{
 			DefaultWorkingDir: request.DefaultWorkingDir, DefaultPermission: request.DefaultPermission,
 			MaxConcurrentSessions: request.MaxConcurrentSessions,
+			ClaudeCommand:         claudeCommand, CodexCommand: codexCommand,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -267,7 +279,7 @@ func constantTimeHeaderMatch(header string, want [sha256.Size]byte) bool {
 	return subtle.ConstantTimeCompare(got[:], want[:]) == 1
 }
 
-func adminStatus(status StatusReport) adminproto.AgentStatus {
+func adminStatus(status StatusReport, claudeCommand, codexCommand string) adminproto.AgentStatus {
 	sessions := make([]adminproto.SessionSnapshot, 0, len(status.Sessions))
 	for _, s := range status.Sessions {
 		sessions = append(sessions, adminproto.SessionSnapshot{
@@ -278,6 +290,7 @@ func adminStatus(status StatusReport) adminproto.AgentStatus {
 	return adminproto.AgentStatus{
 		Addr: status.Addr, AgentVersion: status.AgentVersion, ClaudeVersion: status.ClaudeVersion,
 		ClaudeBin: status.ClaudeBin, CodexVersion: status.CodexVersion, CodexBin: status.CodexBin,
+		ClaudeCommand: claudeCommand, CodexCommand: codexCommand,
 		DefaultWorkingDir: status.DefaultWorkingDir,
 		DefaultPermission: status.DefaultPermission, MaxConcurrentSession: status.MaxConcurrentSession,
 		ConnectedDevices: status.ConnectedDevices, Sessions: sessions,

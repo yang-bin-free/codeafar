@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -161,6 +162,67 @@ func TestAdminHandlerUpdatesRuntimeSettings(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join(dataDir, "config.yaml"))
 	if err != nil || !strings.Contains(string(content), "maxConcurrentSessions: 7") {
 		t.Fatalf("config=%q err=%v", content, err)
+	}
+}
+
+func TestAdminSettingsRejectsUnresolvableCommand(t *testing.T) {
+	dataDir := t.TempDir()
+	workDir := t.TempDir()
+	e := New(Config{DataDir: dataDir, DefaultWorkingDir: workDir, DefaultPermission: "default", MaxConcurrentSession: 2})
+	defer e.Close()
+	h := e.AdminHandler("secret")
+	old := desktopResolveWord
+	desktopResolveWord = func(name string) (string, error) {
+		if name == "nosuchwrapper" {
+			return "", errors.New("not found")
+		}
+		return name, nil
+	}
+	t.Cleanup(func() { desktopResolveWord = old })
+	body := `{"defaultWorkingDir":` + mustJSONString(t, workDir) + `,"defaultPermission":"default","maxConcurrentSessions":2,"claudeCommand":"nosuchwrapper claude"}`
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, adminRequest(http.MethodPatch, "/admin/settings", body, "secret"))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(dataDir, "config.yaml")); !errors.Is(err, os.ErrNotExist) {
+		content, _ := os.ReadFile(filepath.Join(dataDir, "config.yaml"))
+		t.Fatalf("config was written despite rejection: err=%v config=%q", err, content)
+	}
+}
+
+func TestAdminSettingsPersistsCommandAndStatusExposesIt(t *testing.T) {
+	dataDir := t.TempDir()
+	workDir := t.TempDir()
+	e := New(Config{DataDir: dataDir, DefaultWorkingDir: workDir, DefaultPermission: "default", MaxConcurrentSession: 2})
+	defer e.Close()
+	h := e.AdminHandler("secret")
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "wrapper")
+	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	command := wrapper + " claude"
+	old := desktopResolveWord
+	desktopResolveWord = func(name string) (string, error) { return name, nil }
+	t.Cleanup(func() { desktopResolveWord = old })
+	body := `{"defaultWorkingDir":` + mustJSONString(t, workDir) + `,"defaultPermission":"default","maxConcurrentSessions":2,"claudeCommand":` + mustJSONString(t, command) + `}`
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, adminRequest(http.MethodPatch, "/admin/settings", body, "secret"))
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	statusW := httptest.NewRecorder()
+	h.ServeHTTP(statusW, adminRequest(http.MethodGet, "/admin/status", "", "secret"))
+	var snapshot adminproto.Snapshot
+	if err := json.NewDecoder(statusW.Body).Decode(&snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Agent.ClaudeCommand != command {
+		t.Fatalf("claudeCommand=%q", snapshot.Agent.ClaudeCommand)
+	}
+	if snapshot.Agent.CodexCommand != "" {
+		t.Fatalf("codexCommand=%q", snapshot.Agent.CodexCommand)
 	}
 }
 
