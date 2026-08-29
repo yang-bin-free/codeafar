@@ -33,9 +33,9 @@ type appConfig struct {
 }
 
 type appDependencies struct {
-	resolveClaude func(string) (string, error)
-	resolveCodex  func(string) (string, error)
-	detectVersion func(string) (string, error)
+	resolveClaude func(string) (desktop.ResolvedCommand, error)
+	resolveCodex  func(string) (desktop.ResolvedCommand, error)
+	detectVersion func([]string, string) (string, error)
 	newEngine     func(engine.Config) managedEngine
 	listen        func(string, string) (net.Listener, error)
 	serve         func(context.Context, net.Listener, http.Handler) error
@@ -68,7 +68,7 @@ func newApplication(parent context.Context, cfg appConfig, deps appDependencies)
 		deps.resolveCodex = desktop.ResolveCodexBinary
 	}
 	if deps.detectVersion == nil {
-		deps.detectVersion = func(bin string) (string, error) { return engine.DetectCLIVersion(bin, "coding agent") }
+		deps.detectVersion = engine.DetectCLIVersion
 	}
 	if deps.newEngine == nil {
 		deps.newEngine = func(cfg engine.Config) managedEngine { return engine.New(cfg) }
@@ -122,8 +122,8 @@ func (a *application) Resume() error {
 		return nil
 	}
 
-	claudeBin, claudeVersion, claudeErr := a.resolveProvider(a.cfg.ClaudeBin, "Claude", a.deps.resolveClaude)
-	codexBin, codexVersion, codexErr := a.resolveProvider(a.cfg.CodexBin, "Codex", a.deps.resolveCodex)
+	claudeCommand, claudeVersion, claudeErr := a.resolveProvider(a.cfg.ClaudeBin, "Claude", a.deps.resolveClaude)
+	codexCommand, codexVersion, codexErr := a.resolveProvider(a.cfg.CodexBin, "Codex", a.deps.resolveCodex)
 	if claudeErr != nil && codexErr != nil {
 		err := errors.Join(claudeErr, codexErr)
 		a.setUnavailable(err, false)
@@ -133,10 +133,12 @@ func (a *application) Resume() error {
 	desktopDeviceToken := "desktop-" + a.cfg.AdminToken
 	instance := a.deps.newEngine(engine.Config{
 		Addr:                    a.cfg.DesktopAddr,
-		ClaudeBin:               firstNonEmpty(claudeBin, a.cfg.ClaudeBin, "claude"),
+		ClaudeBin:               firstNonEmpty(claudeCommand.Path, a.cfg.ClaudeBin, "claude"),
+		ClaudeBinArgs:           claudeCommand.PrependArgs,
 		ClaudeVersion:           firstNonEmpty(claudeVersion, "unknown"),
 		ClaudeUnavailableReason: errorText(claudeErr),
-		CodexBin:                firstNonEmpty(codexBin, a.cfg.CodexBin, "codex"),
+		CodexBin:                firstNonEmpty(codexCommand.Path, a.cfg.CodexBin, "codex"),
+		CodexBinArgs:            codexCommand.PrependArgs,
 		CodexVersion:            firstNonEmpty(codexVersion, "unknown"),
 		CodexUnavailableReason:  errorText(codexErr),
 		DefaultWorkingDir:       a.cfg.DefaultWorkdir,
@@ -147,22 +149,22 @@ func (a *application) Resume() error {
 	})
 	a.mu.Lock()
 	a.engine = instance
-	a.status = desktop.AppStatus{Ready: true, ClaudeBin: claudeBin, ClaudeVersion: claudeVersion, CodexBin: codexBin, CodexVersion: codexVersion}
+	a.status = desktop.AppStatus{Ready: true, ClaudeBin: claudeCommand.String(), ClaudeVersion: claudeVersion, CodexBin: codexCommand.String(), CodexVersion: codexVersion}
 	a.mu.Unlock()
 	a.emitMenuState()
 	return nil
 }
 
-func (a *application) resolveProvider(requested, name string, resolve func(string) (string, error)) (string, string, error) {
-	bin, err := resolve(requested)
+func (a *application) resolveProvider(requested, name string, resolve func(string) (desktop.ResolvedCommand, error)) (desktop.ResolvedCommand, string, error) {
+	command, err := resolve(requested)
 	if err != nil {
-		return "", "", err
+		return desktop.ResolvedCommand{}, "", err
 	}
-	version, err := a.deps.detectVersion(bin)
+	version, err := a.deps.detectVersion(command.Args(), name)
 	if err != nil {
-		return "", "", fmt.Errorf("%s CLI check failed: %w", name, err)
+		return desktop.ResolvedCommand{}, "", fmt.Errorf("%s CLI check failed: %w", name, err)
 	}
-	return bin, version, nil
+	return command, version, nil
 }
 
 func firstNonEmpty(values ...string) string {

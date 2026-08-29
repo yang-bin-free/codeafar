@@ -110,16 +110,18 @@ func parseServeConfig(args []string) (engine.Config, tsnetOptions, error) {
 		}, nil
 }
 
-func resolveServeProviders(cfg *engine.Config, resolveClaude, resolveCodex func(string) (string, error), detectVersion func(string, string) (string, error)) error {
-	claudeBin, claudeErr := resolveClaude(cfg.ClaudeBin)
+func resolveServeProviders(cfg *engine.Config, resolveClaude, resolveCodex func(string) (desktop.ResolvedCommand, error), detectVersion func([]string, string) (string, error)) error {
+	claudeCommand, claudeErr := resolveClaude(cfg.ClaudeBin)
 	if claudeErr == nil {
-		cfg.ClaudeBin = claudeBin
-		cfg.ClaudeVersion, claudeErr = detectVersion(claudeBin, "Claude")
+		cfg.ClaudeBin = claudeCommand.Path
+		cfg.ClaudeBinArgs = claudeCommand.PrependArgs
+		cfg.ClaudeVersion, claudeErr = detectVersion(claudeCommand.Args(), "Claude")
 	}
-	codexBin, codexErr := resolveCodex(cfg.CodexBin)
+	codexCommand, codexErr := resolveCodex(cfg.CodexBin)
 	if codexErr == nil {
-		cfg.CodexBin = codexBin
-		cfg.CodexVersion, codexErr = detectVersion(codexBin, "Codex")
+		cfg.CodexBin = codexCommand.Path
+		cfg.CodexBinArgs = codexCommand.PrependArgs
+		cfg.CodexVersion, codexErr = detectVersion(codexCommand.Args(), "Codex")
 	}
 	cfg.ClaudeUnavailableReason = errorText(claudeErr)
 	cfg.CodexUnavailableReason = errorText(codexErr)

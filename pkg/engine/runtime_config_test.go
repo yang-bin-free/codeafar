@@ -62,6 +62,26 @@ func TestUpdateRuntimeConfigPersistsCommands(t *testing.T) {
 	}
 }
 
+func TestReadPersistedCommands(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(
+		"defaultWorkingDir: /tmp\ndefaultPermission: default\nmaxConcurrentSessions: 2\nclaudeCommand: wrapper claude\n"),
+		0o600); err != nil {
+		t.Fatal(err)
+	}
+	claude, codex := ReadPersistedCommands(dir)
+	if claude != "wrapper claude" || codex != "" {
+		t.Fatalf("claude=%q codex=%q", claude, codex)
+	}
+}
+
+func TestReadPersistedCommandsReturnsEmptyWithoutFile(t *testing.T) {
+	claude, codex := ReadPersistedCommands(t.TempDir())
+	if claude != "" || codex != "" {
+		t.Fatalf("claude=%q codex=%q", claude, codex)
+	}
+}
+
 func TestInvalidRuntimeConfigKeepsLastValidValues(t *testing.T) {
 	dir := t.TempDir()
 	e := New(Config{DataDir: dir, DefaultWorkingDir: "/old", DefaultPermission: "default", MaxConcurrentSession: 3})

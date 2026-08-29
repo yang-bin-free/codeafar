@@ -44,8 +44,12 @@ func (e *fakeManagedEngine) Status() engine.StatusReport {
 
 func TestApplicationKeepsDesktopAliveWhenClaudeIsUnavailable(t *testing.T) {
 	app := newApplication(context.Background(), appConfig{DesktopAddr: "127.0.0.1:0", ClaudeBin: "claude", AdminToken: "token"}, appDependencies{
-		resolveClaude: func(string) (string, error) { return "", errors.New("claude missing") },
-		resolveCodex:  func(string) (string, error) { return "", errors.New("codex missing") },
+		resolveClaude: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{}, errors.New("claude missing")
+		},
+		resolveCodex: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{}, errors.New("codex missing")
+		},
 	})
 	if err := app.Start(); err != nil {
 		t.Fatal(err)
@@ -65,11 +69,13 @@ func TestApplicationStartsWhenOnlyCodexIsAvailable(t *testing.T) {
 	app := newApplication(context.Background(), appConfig{
 		DesktopAddr: "127.0.0.1:0", ClaudeBin: "claude", CodexBin: "codex", AdminToken: "token",
 	}, appDependencies{
-		resolveClaude: func(string) (string, error) { return "", errors.New("claude missing") },
-		resolveCodex:  func(string) (string, error) { return "/tmp/codex", nil },
-		detectVersion: func(path string) (string, error) {
-			if path != "/tmp/codex" {
-				t.Fatalf("version path=%q", path)
+		resolveClaude: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{}, errors.New("claude missing")
+		},
+		resolveCodex: func(string) (desktop.ResolvedCommand, error) { return desktop.ResolvedCommand{Path: "/tmp/codex"}, nil },
+		detectVersion: func(command []string, _ string) (string, error) {
+			if len(command) != 1 || command[0] != "/tmp/codex" {
+				t.Fatalf("version command=%v", command)
 			}
 			return "0.144.1", nil
 		},
@@ -86,7 +92,50 @@ func TestApplicationStartsWhenOnlyCodexIsAvailable(t *testing.T) {
 	if !status.Ready || status.CodexBin != "/tmp/codex" || status.CodexVersion != "0.144.1" {
 		t.Fatalf("status=%+v", status)
 	}
-	if captured.CodexBin != "/tmp/codex" || captured.ClaudeUnavailableReason != "claude missing" {
+	if captured.CodexBin != "/tmp/codex" || captured.CodexVersion != "0.144.1" || captured.ClaudeUnavailableReason != "claude missing" {
+		t.Fatalf("engine config=%+v", captured)
+	}
+	if len(captured.CodexBinArgs) != 0 {
+		t.Fatalf("engine config codex args=%v", captured.CodexBinArgs)
+	}
+}
+
+func TestStartUsesConfigFileCommandWhenFlagUnset(t *testing.T) {
+	var captured engine.Config
+	app := newApplication(context.Background(), appConfig{
+		DesktopAddr: "127.0.0.1:0", ClaudeBin: "wrapper claude", CodexBin: "codex", AdminToken: "token",
+	}, appDependencies{
+		resolveClaude: func(requested string) (desktop.ResolvedCommand, error) {
+			if requested != "wrapper claude" {
+				t.Fatalf("requested=%q", requested)
+			}
+			return desktop.ResolvedCommand{Path: "/bin/wrapper", PrependArgs: []string{"claude"}}, nil
+		},
+		resolveCodex: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{}, errors.New("codex missing")
+		},
+		detectVersion: func(command []string, _ string) (string, error) {
+			if len(command) > 0 && command[0] == "/bin/wrapper" {
+				return "2.1.245", nil
+			}
+			return "", errors.New("no version")
+		},
+		newEngine: func(cfg engine.Config) managedEngine {
+			captured = cfg
+			return &fakeManagedEngine{}
+		},
+	})
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	if !app.Status().Ready {
+		t.Fatalf("status=%+v", app.Status())
+	}
+	if captured.ClaudeBin != "/bin/wrapper" || len(captured.ClaudeBinArgs) != 1 || captured.ClaudeBinArgs[0] != "claude" {
+		t.Fatalf("engine config claude bin=%q args=%v", captured.ClaudeBin, captured.ClaudeBinArgs)
+	}
+	if captured.CodexUnavailableReason != "codex missing" {
 		t.Fatalf("engine config=%+v", captured)
 	}
 }
@@ -95,8 +144,10 @@ func TestApplicationPauseAndResumeKeepsDesktopHandler(t *testing.T) {
 	created := make([]*fakeManagedEngine, 0, 2)
 	configs := make([]engine.Config, 0, 2)
 	app := newApplication(context.Background(), appConfig{DesktopAddr: "127.0.0.1:0", ClaudeBin: "claude", AdminToken: "token"}, appDependencies{
-		resolveClaude: func(string) (string, error) { return "/tmp/claude", nil },
-		detectVersion: func(string) (string, error) { return "1.2.3", nil },
+		resolveClaude: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{Path: "/tmp/claude"}, nil
+		},
+		detectVersion: func([]string, string) (string, error) { return "1.2.3", nil },
 		newEngine: func(cfg engine.Config) managedEngine {
 			instance := &fakeManagedEngine{}
 			created = append(created, instance)
@@ -136,8 +187,10 @@ func TestApplicationPauseAndResumeKeepsDesktopHandler(t *testing.T) {
 func TestApplicationDesktopProjectEndpointUsesCurrentEngine(t *testing.T) {
 	instance := &fakeManagedEngine{}
 	app := newApplication(context.Background(), appConfig{DesktopAddr: "127.0.0.1:0", ClaudeBin: "claude", AdminToken: "token"}, appDependencies{
-		resolveClaude: func(string) (string, error) { return "/tmp/claude", nil },
-		detectVersion: func(string) (string, error) { return "1.2.3", nil },
+		resolveClaude: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{Path: "/tmp/claude"}, nil
+		},
+		detectVersion: func([]string, string) (string, error) { return "1.2.3", nil },
 		newEngine:     func(engine.Config) managedEngine { return instance },
 	})
 	if err := app.Start(); err != nil {
@@ -160,7 +213,7 @@ func TestApplicationDesktopProjectEndpointUsesCurrentEngine(t *testing.T) {
 
 func TestApplicationCloseIsIdempotent(t *testing.T) {
 	app := newApplication(context.Background(), appConfig{DesktopAddr: "127.0.0.1:0", AdminToken: "token"}, appDependencies{
-		resolveClaude: func(string) (string, error) { return "", errors.New("missing") },
+		resolveClaude: func(string) (desktop.ResolvedCommand, error) { return desktop.ResolvedCommand{}, errors.New("missing") },
 	})
 	if err := app.Start(); err != nil {
 		t.Fatal(err)
@@ -176,8 +229,10 @@ func TestApplicationCloseIsIdempotent(t *testing.T) {
 func TestNativeQuitClosesEngineAndCancelsContext(t *testing.T) {
 	instance := &fakeManagedEngine{}
 	app := newApplication(context.Background(), appConfig{DesktopAddr: "127.0.0.1:0", ClaudeBin: "claude", AdminToken: "token"}, appDependencies{
-		resolveClaude: func(string) (string, error) { return "/tmp/claude", nil },
-		detectVersion: func(string) (string, error) { return "1.2.3", nil },
+		resolveClaude: func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{Path: "/tmp/claude"}, nil
+		},
+		detectVersion: func([]string, string) (string, error) { return "1.2.3", nil },
 		newEngine:     func(engine.Config) managedEngine { return instance },
 	})
 	if err := app.Start(); err != nil {

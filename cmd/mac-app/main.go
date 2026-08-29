@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/yang-bin-free/claude-phone/pkg/desktop"
+	"github.com/yang-bin-free/claude-phone/pkg/engine"
 	"github.com/yang-bin-free/claude-phone/pkg/product"
 )
 
@@ -43,6 +44,28 @@ func main() {
 	if err != nil {
 		log.Fatalf("CodeAfar data migration failed: %v", err)
 	}
+	// Explicit flags win over config.yaml, which wins over the defaults.
+	claudeCommand := *claudeBin
+	codexCommand := *codexBin
+	claudeFlagSet := false
+	codexFlagSet := false
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "claude-bin":
+			claudeFlagSet = true
+		case "codex-bin":
+			codexFlagSet = true
+		}
+	})
+	if !claudeFlagSet || !codexFlagSet {
+		fileClaude, fileCodex := engine.ReadPersistedCommands(resolvedDataDir)
+		if !claudeFlagSet && fileClaude != "" {
+			claudeCommand = fileClaude
+		}
+		if !codexFlagSet && fileCodex != "" {
+			codexCommand = fileCodex
+		}
+	}
 	token, err := generateAdminToken()
 	if err != nil {
 		log.Fatal(err)
@@ -50,7 +73,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	app := newApplication(ctx, appConfig{
-		DesktopAddr: *desktopAddr, ClaudeBin: *claudeBin, CodexBin: *codexBin, DefaultWorkdir: *workdir,
+		DesktopAddr: *desktopAddr, ClaudeBin: claudeCommand, CodexBin: codexCommand, DefaultWorkdir: *workdir,
 		DefaultPermission: *permission, DataDir: resolvedDataDir, AdminToken: token,
 	}, appDependencies{})
 	if err := app.Start(); err != nil {

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yang-bin-free/claude-phone/pkg/desktop"
 	"github.com/yang-bin-free/claude-phone/pkg/engine"
 )
 
@@ -41,11 +42,15 @@ func TestParseServeConfig_LocalByDefault(t *testing.T) {
 func TestResolveServeProvidersAllowsCodexOnly(t *testing.T) {
 	cfg := engine.Config{ClaudeBin: "claude", CodexBin: "codex"}
 	err := resolveServeProviders(&cfg,
-		func(string) (string, error) { return "", errors.New("Claude missing") },
-		func(string) (string, error) { return "/tools/codex", nil },
-		func(bin, name string) (string, error) {
-			if bin != "/tools/codex" || name != "Codex" {
-				t.Fatalf("version lookup: bin=%q name=%q", bin, name)
+		func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{}, errors.New("Claude missing")
+		},
+		func(string) (desktop.ResolvedCommand, error) {
+			return desktop.ResolvedCommand{Path: "/tools/codex"}, nil
+		},
+		func(command []string, name string) (string, error) {
+			if len(command) != 1 || command[0] != "/tools/codex" || name != "Codex" {
+				t.Fatalf("version lookup: command=%v name=%q", command, name)
 			}
 			return "1.2.3", nil
 		},
@@ -53,7 +58,7 @@ func TestResolveServeProvidersAllowsCodexOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve providers: %v", err)
 	}
-	if cfg.CodexBin != "/tools/codex" || cfg.CodexVersion != "1.2.3" {
+	if cfg.CodexBin != "/tools/codex" || cfg.CodexVersion != "1.2.3" || len(cfg.CodexBinArgs) != 0 {
 		t.Fatalf("codex config: %+v", cfg)
 	}
 	if !strings.Contains(cfg.ClaudeUnavailableReason, "Claude missing") {

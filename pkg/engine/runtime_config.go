@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -47,6 +48,23 @@ func (e *Engine) updateRuntimeConfig(next runtimeConfig) error {
 		return err
 	}
 	return e.reloadRuntimeConfig()
+}
+
+// ReadPersistedCommands returns the persisted Claude/Codex launch commands
+// from the data dir's config.yaml. Empty strings mean "use defaults".
+func ReadPersistedCommands(dataDir string) (claude, codex string) {
+	b, err := os.ReadFile(filepath.Join(dataDir, "config.yaml"))
+	if err != nil {
+		return "", ""
+	}
+	var cfg struct {
+		ClaudeCommand string `yaml:"claudeCommand"`
+		CodexCommand  string `yaml:"codexCommand"`
+	}
+	if yaml.Unmarshal(b, &cfg) != nil {
+		return "", ""
+	}
+	return strings.TrimSpace(cfg.ClaudeCommand), strings.TrimSpace(cfg.CodexCommand)
 }
 
 type runtimeConfig struct {

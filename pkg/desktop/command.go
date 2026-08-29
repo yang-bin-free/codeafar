@@ -21,6 +21,12 @@ func (c ResolvedCommand) String() string {
 	return strings.Join(append([]string{c.Path}, c.PrependArgs...), " ")
 }
 
+// Args returns the command as an argv slice: executable followed by prepend
+// args.
+func (c ResolvedCommand) Args() []string {
+	return append([]string{c.Path}, c.PrependArgs...)
+}
+
 // ResolveCommand resolves a requested CLI command, which may be multi-word
 // (for example "wrapper claude"). The first word is resolved to an executable
 // path and the remaining words become PrependArgs. An empty requested value
