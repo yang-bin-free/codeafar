@@ -30,7 +30,7 @@ func TestValidateCommandSettingAcceptsResolvable(t *testing.T) {
 }
 
 func TestValidateCommandSettingRejectsQuotes(t *testing.T) {
-	for _, bad := range []string{`wrapper "a b"`, "wrapper 'x'"} {
+	for _, bad := range []string{`wrapper "a b"`, "wrapper 'x'", "wrapper\ttab", "wrapper\rcr"} {
 		if _, err := ValidateCommandSetting(bad, "Claude", fakeResolve(true)); err == nil {
 			t.Fatalf("expected quote rejection for %q", bad)
 		}

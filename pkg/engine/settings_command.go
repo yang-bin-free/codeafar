@@ -24,7 +24,7 @@ func ValidateCommandSetting(command, displayName string, resolve func(string) (s
 	if strings.ContainsAny(command, "\"'") {
 		return "", errors.New(displayName + " 命令不支持引号参数")
 	}
-	if strings.ContainsRune(command, '\t') || strings.ContainsRune(command, '\n') {
+	if strings.ContainsAny(command, "\t\n\r\v\f") {
 		return "", errors.New(displayName + " 命令包含非法空白字符")
 	}
 	if len(command) > commandMaxBytes {

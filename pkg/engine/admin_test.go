@@ -203,10 +203,11 @@ func TestAdminSettingsPersistsCommandAndStatusExposesIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	command := wrapper + " claude"
+	codexCommand := wrapper + " codex"
 	old := desktopResolveWord
 	desktopResolveWord = func(name string) (string, error) { return name, nil }
 	t.Cleanup(func() { desktopResolveWord = old })
-	body := `{"defaultWorkingDir":` + mustJSONString(t, workDir) + `,"defaultPermission":"default","maxConcurrentSessions":2,"claudeCommand":` + mustJSONString(t, command) + `}`
+	body := `{"defaultWorkingDir":` + mustJSONString(t, workDir) + `,"defaultPermission":"default","maxConcurrentSessions":2,"claudeCommand":` + mustJSONString(t, command) + `,"codexCommand":` + mustJSONString(t, codexCommand) + `}`
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, adminRequest(http.MethodPatch, "/admin/settings", body, "secret"))
 	if w.Code != http.StatusNoContent {
@@ -221,7 +222,7 @@ func TestAdminSettingsPersistsCommandAndStatusExposesIt(t *testing.T) {
 	if snapshot.Agent.ClaudeCommand != command {
 		t.Fatalf("claudeCommand=%q", snapshot.Agent.ClaudeCommand)
 	}
-	if snapshot.Agent.CodexCommand != "" {
+	if snapshot.Agent.CodexCommand != codexCommand {
 		t.Fatalf("codexCommand=%q", snapshot.Agent.CodexCommand)
 	}
 }
