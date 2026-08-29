@@ -9,7 +9,7 @@ import (
 func writeVersionScript(t *testing.T, dir, name, version string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	script := "#!/bin/sh\necho '" + version + "'\n"
+	script := "#!/bin/sh\n[ \"$1\" = \"--version\" ] || { echo \"bad invocation: $*\" >&2; exit 1; }\necho '" + version + "'\n"
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestDetectCLIVersionSingleCommand(t *testing.T) {
 func TestDetectCLIVersionWithPrependArgs(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "wrapper")
-	script := "#!/bin/sh\necho \"$1 -> 2.1.245\"\n"
+	script := "#!/bin/sh\n[ \"$1\" = \"claude\" ] && [ \"$2\" = \"--version\" ] || { echo \"bad invocation: $*\" >&2; exit 1; }\necho '2.1.245'\n"
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,7 @@ import (
 var cliVersionPattern = regexp.MustCompile(`\b(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\b`)
 var claudeVersionPattern = cliVersionPattern
 
+// DetectClaudeVersion resolves the Claude CLI version, defaulting bin to "claude".
 func DetectClaudeVersion(bin string) (string, error) {
 	if bin == "" {
 		bin = "claude"
