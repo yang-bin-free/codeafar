@@ -22,6 +22,8 @@
     document.querySelector("#settings-workdir").value = agent.defaultWorkingDir || "";
     document.querySelector("#settings-permission").value = agent.defaultPermission || "default";
     document.querySelector("#settings-concurrency").value = agent.maxConcurrentSession || 5;
+    document.querySelector("#settings-claude-command").value = agent.claudeCommand || "";
+    document.querySelector("#settings-codex-command").value = agent.codexCommand || "";
     renderSessions(agent.sessions || []);
     const deviceList = document.querySelector("#admin-devices");
     deviceList.replaceChildren();
@@ -163,7 +165,9 @@
         body: JSON.stringify({
           defaultWorkingDir: document.querySelector("#settings-workdir").value.trim(),
           defaultPermission: document.querySelector("#settings-permission").value,
-          maxConcurrentSessions: Number(document.querySelector("#settings-concurrency").value)
+          maxConcurrentSessions: Number(document.querySelector("#settings-concurrency").value),
+          claudeCommand: document.querySelector("#settings-claude-command").value.trim(),
+          codexCommand: document.querySelector("#settings-codex-command").value.trim()
         })
       });
       if (!response.ok) throw new Error(await response.text());

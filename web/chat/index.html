@@ -56,6 +56,8 @@
           <label>默认目录<input id="settings-workdir" type="text" required></label>
           <label>默认权限<select id="settings-permission"><option value="default">严格</option><option value="acceptEdits">审阅</option><option value="bypassPermissions">信任</option></select></label>
           <label>并发会话<input id="settings-concurrency" type="number" min="1" max="20" required></label>
+          <label>Claude 命令<input id="settings-claude-command" type="text" placeholder="claude"></label>
+          <label>Codex 命令<input id="settings-codex-command" type="text" placeholder="codex"></label>
           <button class="primary">保存设置</button>
         </form>
         <p id="admin-feedback" class="admin-feedback" role="status"></p>

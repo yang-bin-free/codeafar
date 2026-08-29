@@ -20,6 +20,11 @@ func TestDesktopAdminFormsHavePersistentLabelsAndMode(t *testing.T) {
 			t.Errorf("admin control %s has no persistent label", id)
 		}
 	}
+	for _, id := range []string{"settings-claude-command", "settings-codex-command"} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Errorf("settings form missing CLI command input %s", id)
+		}
+	}
 
 	jsBytes, err := fs.ReadFile(Assets, "chat/chat.js")
 	if err != nil {
@@ -28,6 +33,15 @@ func TestDesktopAdminFormsHavePersistentLabelsAndMode(t *testing.T) {
 	js := string(jsBytes)
 	if !strings.Contains(js, `classList.toggle("admin-mode"`) {
 		t.Error("chat shell does not expose admin mode to presentation")
+	}
+
+	adminBytes, err := fs.ReadFile(Assets, "admin/admin.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin := string(adminBytes)
+	if !strings.Contains(admin, `settings-claude-command`) || !strings.Contains(admin, `settings-codex-command`) {
+		t.Error("admin JS does not handle CLI command settings")
 	}
 }
 
